@@ -16,5 +16,5 @@ class MainProject(ConanFile):
         self.requires("service_provider_memory_inspection/[~6]@robotkernel/unstable")
         self.requires("service_provider_canopen_protocol/[~6]@robotkernel/unstable")
         self.requires("service_provider_process_data_inspection/[~6]@robotkernel/unstable")
-        self.requires("serialcan/0.3.0@3rdparty/snapshot")
+        self.requires("serialcan/0.3.0@3rdparty/unstable")
 
