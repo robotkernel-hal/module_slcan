@@ -60,10 +60,11 @@ namespace module_slcan {
 class slcanmaster : 
     public virtual robotkernel::shared_base,
     public robotkernel::module_base,
-    public robotkernel::trigger_base,
     public robotkernel::runnable 
 {
     public:
+        YAML::Node node;
+
         std::string tty_name;
         int baudrate;
     
@@ -72,6 +73,8 @@ class slcanmaster :
         std::list<std::string> slave_stream_names;  //!< Name of slave stream devices.
         robotkernel::stream_map_t slave_streams;    //!< Slave stream devices.
 
+        std::shared_ptr<robotkernel::triggerable> trg;  //!< @brief We get triggered by other trigger.
+        std::shared_ptr<robotkernel::trigger> send_trigger;
     public:
         //! construction
         /*!
@@ -82,8 +85,11 @@ class slcanmaster :
         //! destruction 
         ~slcanmaster();
 
+        //! second stage init
+        virtual void init() override;
+
         //! module trigger callback
-        virtual void tick() override;
+        void tick();
 
         //! State transition from SAFEOP to PREOP
         virtual void set_state_safeop_2_preop() override;

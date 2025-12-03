@@ -42,9 +42,10 @@ using namespace std;
  * \param node yaml intialization node
  */
 slcanmaster::slcanmaster(const std::string& name, const YAML::Node& node) :
-    module_base("module_slcan", name, node), 
-    trigger_base(node["trigger"])
+    module_base("module_slcan", name, node)
 {
+    this->node = YAML::Clone(node);
+
     tty_name = get_as<string>(node, "tty_name");
     baudrate = get_as<int>(node, "baudrate");
    
@@ -59,6 +60,15 @@ slcanmaster::slcanmaster(const std::string& name, const YAML::Node& node) :
 
 //! destruction 
 slcanmaster::~slcanmaster() {
+}
+
+//! second stage init
+void slcanmaster::init() {
+    if (node["trigger"]) {
+        trg = make_shared<triggerable>(node["trigger"], bind(&slcanmaster::tick, this));
+    } else {
+        trg = make_shared<triggerable>(YAML::Node(), bind(&slcanmaster::tick, this));
+    }
 }
 
 //! module trigger callback
@@ -92,6 +102,17 @@ void slcanmaster::tick() {
 void slcanmaster::set_state_safeop_2_preop() {
     stop();
 
+    for (const auto& kv : slave_streams) {
+        auto s = kv.second;
+        s->trigger_dev->remove_trigger(trg);
+    }
+
+    remove_device(send_trigger);
+    send_trigger->remove_trigger(trg);
+    send_trigger = nullptr;
+
+    trg->release();
+
     slave_streams.clear();
 }
 
@@ -99,7 +120,7 @@ void slcanmaster::set_state_safeop_2_preop() {
 void slcanmaster::set_state_preop_2_init() {
     CANAPI_Return_t retval;
     if ((retval = serial_can.TeardownChannel()) != CSerialCAN::NoError) {
-        log(error, "error: interface could not be shutdown\n");
+        throw runtime_error("error: interface could not be shutdown\n");
     }
 }
 
@@ -112,12 +133,12 @@ void slcanmaster::set_state_init_2_preop() {
     bitrate.index = baudrate;
 
     if ((retval = serial_can.InitializeChannel(tty_name.c_str(), opmode)) != CSerialCAN::NoError) {
-        throw runtime_error("error: interface could not be initialized");
+        throw runtime_error(string_printf("error: interface %s could not be initialized", tty_name.c_str()));
     }
     
     if ((retval = serial_can.StartController(bitrate)) != CSerialCAN::NoError) {
         (void)serial_can.TeardownChannel();
-        throw runtime_error("error: interface could not be started");
+        throw runtime_error(string_printf("error: interface %s could not be started", tty_name.c_str()));
     }
 }
 
@@ -130,9 +151,15 @@ void slcanmaster::set_state_preop_2_safeop() {
             throw runtime_error(string_printf(" module not found %s\n", stream_name.c_str()));
         }
 
+        s->trigger_dev->add_trigger(trg);
         slave_streams[stream_name] = s;
     }
 
+    send_trigger = make_shared<trigger>(name, "send");
+    send_trigger->add_trigger(trg);
+    add_device(send_trigger);
+
+    trg->aquire();
     start();
 }
 
