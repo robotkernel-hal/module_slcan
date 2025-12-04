@@ -42,13 +42,15 @@ using namespace std;
  * \param node yaml intialization node
  */
 slcanmaster::slcanmaster(const std::string& name, const YAML::Node& node) :
-    module_base("module_slcan", name, node)
+    module_base("module_slcan", name, node),
+    runnable(node)
 {
     this->node = YAML::Clone(node);
 
     tty_name = get_as<string>(node, "tty_name");
     baudrate = get_as<int>(node, "baudrate");
-   
+    thread_name = name + "_recv";
+
     if (node["slave_streams"]) {
         // parsing slave configurations
         for (const auto& stream_node : node["slave_streams"]) {
