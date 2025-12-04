@@ -25,9 +25,16 @@
 
 #include "slcanmaster.h"
 
+#include "can_api.h"
+#include "can_btr.h"
+
+#include "CANAPI_Defines.h"
+#include "SerialCAN_Defines.h"
+
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <string.h>
 
 MODULE_DEF(module_slcan, module_slcan::slcanmaster);
 
@@ -48,8 +55,15 @@ slcanmaster::slcanmaster(const std::string& name, const YAML::Node& node) :
     this->node = YAML::Clone(node);
 
     tty_name = get_as<string>(node, "tty_name");
-    baudrate = get_as<int>(node, "baudrate");
+    int tmp_baudrate = get_as<int>(node, "baudrate");
     thread_name = name + "_recv";
+
+    if (tmp_baudrate == 250000) {
+        baudrate = CANBDR_250;
+    } else {
+        log(warning, "currently not implemented baudrate %d, switching to 1MBit/s\n", tmp_baudrate);
+        baudrate = CANBDR_1000;
+    }
 
     if (node["slave_streams"]) {
         // parsing slave configurations
@@ -75,27 +89,37 @@ void slcanmaster::init() {
 
 //! module trigger callback
 void slcanmaster::tick() {
-    CANAPI_Message_t message;
+    int retval = 0;
+    can_message_t msg = { 0 };
+    can::frame_t frame;
 
     // get frames to send
     for (const auto& kv : slave_streams) {
-        can::frame_t frame;
         ssize_t rd = kv.second->read((char *)&frame, sizeof(frame));
 
         if (rd == 0) {
             continue; // next slave 
         }
 
-        message.id = frame.hdr;
-        message.xtd = 0;
-        message.rtr = frame.rtr;
-        message.dlc = frame.dlc;
-        if (frame.dlc > 0)
-            memcpy(message.data, frame.data, frame.dlc);
+        msg.id = frame.hdr;
+        msg.xtd = 0;
+        msg.rtr = frame.rtr;
+        msg.dlc = frame.dlc;
+        if (frame.dlc > 0) {
+            memcpy(msg.data, frame.data, frame.dlc);
+        }
 
-        CANAPI_Return_t retval;
-        if ((retval = serial_can.WriteMessage(message)) != CSerialCAN::NoError) {
-            log(warning, "message could not be sent!\n");
+        do {
+            retval = can_write(handle, &msg, 0u);
+        } while (retval == CANERR_TX_BUSY);
+
+        if (retval < CANERR_NOERROR) {
+            if (retval < -100) {
+                int _errno = -1 * (retval + 100);
+                log(warning, "message could not be send: %s\n", strerror(_errno));
+            } else {
+                log(warning, "message could not be sent: %d\n", retval);
+            }
         }
     }
 }
@@ -120,27 +144,32 @@ void slcanmaster::set_state_safeop_2_preop() {
 
 //! State transition from PREOP to INIT
 void slcanmaster::set_state_preop_2_init() {
-    CANAPI_Return_t retval;
-    if ((retval = serial_can.TeardownChannel()) != CSerialCAN::NoError) {
-        throw runtime_error("error: interface could not be shutdown\n");
-    }
+    (void)can_reset(handle);
+    (void)can_exit(handle);
 }
 
 //! State transition from INIT to PREOP
 void slcanmaster::set_state_init_2_preop() {
-    CANAPI_Return_t retval = 0;
-    CANAPI_OpMode_t opmode = {};
-    opmode.byte = CANMODE_DEFAULT;
-    CANAPI_Bitrate_t bitrate = {};
-    bitrate.index = baudrate;
+    int result;
+    can_bitrate_t bitrate;
+    can_sio_param_t port;
 
-    if ((retval = serial_can.InitializeChannel(tty_name.c_str(), opmode)) != CSerialCAN::NoError) {
-        throw runtime_error(string_printf("error: interface %s could not be initialized", tty_name.c_str()));
+    port.name = (char*)tty_name.c_str();
+    port.attr.protocol = CANSIO_CANABLE; //LAWICEL;
+    port.attr.baudrate = CANSIO_BD115200;
+    port.attr.bytesize = CANSIO_8DATABITS;
+    port.attr.parity = CANSIO_NOPARITY;
+    port.attr.stopbits = CANSIO_1STOPBIT;
+
+    log(info, "SerialCAN version: %s\n", can_version());
+
+    if ((handle = can_init(CAN_BOARD(CANLIB_SERIALCAN, CANDEV_SERIAL), CANMODE_DEFAULT, (const void*)&port)) < 0) {
+        throw runtime_error(string_printf("interface could not be initialized: %d\n", handle));
     }
-    
-    if ((retval = serial_can.StartController(bitrate)) != CSerialCAN::NoError) {
-        (void)serial_can.TeardownChannel();
-        throw runtime_error(string_printf("error: interface %s could not be started", tty_name.c_str()));
+
+    bitrate.index = CANBTR_INDEX_250K;
+    if ((result = can_start(handle, &bitrate)) < 0) {
+        throw runtime_error(string_printf("interface could not be started: %d", result));
     }
 }
 
@@ -167,17 +196,19 @@ void slcanmaster::set_state_preop_2_safeop() {
 
 //! run receiver thread 
 void slcanmaster::run() {
-    CANAPI_Return_t retval;
-    CANAPI_Message_t message;
+    int retval = 0;
+    can_message_t msg = {};
 
     while (running()) {
-        if ((retval = serial_can.ReadMessage(message, CANREAD_INFINITE)) == CSerialCAN::NoError) {
+        retval = can_read(handle, &msg, 1000);
+
+        if (retval == CANERR_NOERROR) {
             can::frame_t frame;
-            frame.hdr = message.id;
-            frame.rtr = message.rtr;
-            frame.dlc = message.dlc;
-            if (message.dlc > 0) {
-                memcpy(frame.data, message.data, message.dlc);
+            frame.hdr = msg.id;
+            frame.rtr = msg.rtr;
+            frame.dlc = msg.dlc;
+            if (msg.dlc > 0) {
+                memcpy(frame.data, msg.data, msg.dlc);
             }
 
             // process received frame
@@ -185,8 +216,8 @@ void slcanmaster::run() {
                 if (kv.second->write((char *)&frame, sizeof(frame)))
                     break; // frames should only be processed once
             }
-        } else if (retval != CSerialCAN::ReceiverEmpty) {
-            log(warning, "read message returned %i", retval);
+        } else {
+            log(warning, "read message returned %i\n", retval);
         }
     }
 }

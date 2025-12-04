@@ -35,16 +35,6 @@
 #include "robotkernel/stream.h"
 #include "robotkernel/module_base.h"
 
-//#include "PCANBasic.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "SerialCAN_Defines.h"
-#include "SerialCAN.h"
-#ifdef __cplusplus
-}
-#endif
-
 namespace can {
 typedef struct __attribute__((__packed__)) frame {
     uint32_t hdr;
@@ -68,7 +58,7 @@ class slcanmaster :
         std::string tty_name;
         int baudrate;
     
-        CSerialCAN serial_can;
+        int handle;
 
         std::list<std::string> slave_stream_names;  //!< Name of slave stream devices.
         robotkernel::stream_map_t slave_streams;    //!< Slave stream devices.
