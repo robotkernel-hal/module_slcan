@@ -58,11 +58,37 @@ slcanmaster::slcanmaster(const std::string& name, const YAML::Node& node) :
     int tmp_baudrate = get_as<int>(node, "baudrate");
     thread_name = name + "_recv";
 
-    if (tmp_baudrate == 250000) {
-        baudrate = CANBDR_250;
-    } else {
-        log(warning, "currently not implemented baudrate %d, switching to 1MBit/s\n", tmp_baudrate);
-        baudrate = CANBDR_1000;
+    switch (tmp_baudrate) {
+        case 1000000:
+            baudrate = CANBDR_1000;
+            break;
+        case 800000:
+            baudrate = CANBDR_800;
+            break;
+        case 500000:
+            baudrate = CANBDR_500;
+            break;
+        case 250000:
+            baudrate = CANBDR_250;
+            break;
+        case 125000:
+            baudrate = CANBDR_125;
+            break;
+        case 100000:
+            baudrate = CANBDR_100;
+            break;
+        case 50000:
+            baudrate = CANBDR_50;
+            break;
+        case 20000:
+            baudrate = CANBDR_20;
+            break;
+        case 10000:
+            baudrate = CANBDR_10;
+            break;
+        default:
+            log(warning, "unsupported baudrate %d, switching to 1000 kBit/s\n", tmp_baudrate);
+            break;
     }
 
     if (node["slave_streams"]) {
