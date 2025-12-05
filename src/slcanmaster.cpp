@@ -106,11 +106,8 @@ slcanmaster::~slcanmaster() {
 
 //! second stage init
 void slcanmaster::init() {
-    if (node["trigger"]) {
-        trg = make_shared<triggerable>(node["trigger"], bind(&slcanmaster::tick, this));
-    } else {
-        trg = make_shared<triggerable>(YAML::Node(), bind(&slcanmaster::tick, this));
-    }
+    auto tmp = get_as<YAML::Node>(node, "trigger", YAML::Node());
+    trg = make_shared<triggerable>(tmp, bind(&slcanmaster::tick, this));
 }
 
 //! module trigger callback
