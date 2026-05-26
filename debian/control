@@ -1,0 +1,16 @@
+Source: module-slcan
+Section: embedded
+Priority: optional
+Maintainer: Robert Burger <robert.burger@dlr.de>
+Build-Depends: debhelper-compat (= 13), robotkernel-dev (>=6), service-provider-process-data-inspection-dev (>=6)
+Standards-Version: 4.5.1
+Homepage: https://www.burger-system.de/robotkernel/module_slcan
+Vcs-Browser: https://github.com/robotkernel-hal/module_slcan.git
+Vcs-Git: https://github.com/robotkernel-hal/module_slcan.git
+Rules-Requires-Root: no
+
+Package: module-slcan
+Architecture: any
+Multi-Arch: same
+Depends: robotkernel ${misc:Depends}
+Description: Robotkernel module to communicate with SerialCAN devices.

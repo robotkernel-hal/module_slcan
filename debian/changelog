@@ -1,0 +1,14 @@
+module-slcan (6.0.0) stable; urgency=low
+
+  * fix: build against robotkernel 6
+
+ -- Robert Burger <robert.burger@dlr.de>  Mon, 26 Jan 2026 10:33:35 +0100
+
+module-slcan () unstable; urgency=low
+
+  * fix: build against robotkernel 6
+  * fix: remove osal include
+  * add: initial import
+
+ -- Robert Burger <robert.burger@dlr.de>  Mon, 26 Jan 2026 10:33:35 +0100
+
