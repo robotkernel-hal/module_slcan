@@ -74,7 +74,7 @@ jobs:
           make -C Libraries/SerialCAN/ libserialcan.a
           cd ..
 
-          export SERIALCAN_CFLAGS="-I$(pwd)/Sources -I$(pwd)/Sources/CANAPI -I$(pwd)/Sources/SLCAN"
+          export SERIALCAN_CFLAGS="-I$(pwd)/SerialCAN/Sources -I$(pwd)/SerialCAN/Sources/CANAPI -I$(pwd)/SerialCAN/Sources/SLCAN"
           export SERIALCAN_LIBS="-L$(pwd)/SerialCAN/Libraries/SerialCAN -lserialcan -L$(pwd)/SerialCAN/Libraries/CANAPI -luvcanslc"
 
 
