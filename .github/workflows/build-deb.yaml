@@ -76,6 +76,7 @@ jobs:
           export SERIALCAN_CFLAGS="-I$(pwd)/Sources -I$(pwd)/Sources/CANAPI -I$(pwd)/Sources/SLCAN"
           export SERIALCAN_LIBS="-L$(pwd)/SerialCAN/Libraries/SerialCAN -lserialcan -L$(pwd)/SerialCAN/Libraries/CANAPI -luvcanslc"
 
+
           # baue mit dpkg-buildpackage (ohne signieren)
           export DEBEMAIL="robert.burger@dlr.de"
           export DEBFULLNAME="Robert Burger"
