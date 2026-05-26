@@ -9,6 +9,6 @@ permissions:
 
 jobs:
   run-shared:
-    uses: ./.github/workflows/build-deb.yaml
+    uses: robotkernel-hal/module_slcan/.github/workflows/build-deb.yaml@master
     secrets: inherit
 
