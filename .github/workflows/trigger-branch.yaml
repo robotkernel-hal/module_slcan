@@ -11,4 +11,3 @@ jobs:
   run-shared:
     uses: ./.github/workflows/build-deb.yaml
     secrets: inherit
-
