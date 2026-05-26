@@ -65,6 +65,17 @@ jobs:
       - name: Build .deb package
         shell: bash
         run: |
+          git clone -b v0.3 https://github.com/mac-can/SerialCAN.git
+          cd SerialCAN
+          make build_no
+          install -d Libraries/CANAPI/.objects/
+          make -C Libraries/CANAPI/ libuvcanslc.a
+          install -d Libraries/SerialCAN/.objects/
+          make -C Libraries/SerialCAN/ libserialcan.a
+
+          export SERIALCAN_CFLAGS="-I$(pwd)/Sources -I$(pwd)/Sources/CANAPI -I$(pwd)/Sources/SLCAN"
+          export SERIALCAN_LIBS="-L$(pwd)/SerialCAN/Libraries/SerialCAN -lserialcan -L$(pwd)/SerialCAN/Libraries/CANAPI -luvcanslc"
+
           # baue mit dpkg-buildpackage (ohne signieren)
           export DEBEMAIL="robert.burger@dlr.de"
           export DEBFULLNAME="Robert Burger"
